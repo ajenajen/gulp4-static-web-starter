@@ -14,13 +14,12 @@ const { file }    = require('babel-types');
 		rsync         = require('gulp-rsync'),
 		imageResize   = require('gulp-image-resize'),
 		imagemin      = require('gulp-imagemin'),
-    minifyCSS     = require('gulp-minify-css'),
     minifyJS      = require('gulp-minify'),
     del           = require('del');
 
 var paths = 'app';
 var pathLocalhost = 'http://localhost/gulp4test';
-var pathExport = paths + '/export';
+var pathExport = 'export';
 
 var pathExports = {
   js:       pathExport + '/js' ,
@@ -56,10 +55,7 @@ gulp.task('styles', function() {
 
 // JS
 gulp.task('scripts', function() {
-	return gulp.src([
-		paths + '/libs/js/jquery.min.js',
-    paths + '/js/common.js', // Always at the end
-	])
+	return gulp.src(paths + '/js/common.js')
 	.pipe(concat('scripts.min.js'))
 	.pipe(gulp.dest(paths + '/js'))
 	.pipe(browserSync.reload({ stream: true }))
@@ -92,6 +88,17 @@ gulp.task('code', function() {
 
 gulp.task('img', gulp.parallel('img1x', 'img2x'));
 
+//Concatenates JS files
+gulp.task('concatVendorScripts', function() {
+  return gulp.src([
+    paths + '/libs/js/**/*',
+    paths + '/libs/**/*.js',
+  ])
+  .pipe(concat('all-libs.js'))
+  .pipe(minifyJS())
+  .pipe(gulp.dest(pathExports.js));
+});
+
 
 //======================================================================
 
@@ -100,47 +107,46 @@ gulp.task('img', gulp.parallel('img1x', 'img2x'));
 gulp.task('cleanExport', function() { 
   return del(pathExport + '/**');
 });
-//Concatenates CSS files
-gulp.task('concatVendorsStyles', function() {
-  return gulp.src(paths + '/libs/css/**/*')
-    .pipe(concat('all-libs.css'))
-    .pipe(gulp.dest(pathExports.css))
-    .pipe(minifyCSS())
-    .pipe(rename({suffix: '.min'}))
-    .pipe(gulp.dest(pathExports.css));
-});
-//Concatenates JS files
-gulp.task('concatVendorScripts', function() {
-  return gulp.src(paths + '/libs/js/**/*')
-    .pipe(concat('all-libs.js'))
-    .pipe(gulp.dest(pathExports.js));
-});
-gulp.task('minifyJS', function () {
-  return gulp.src(pathExports.js + '/*.js')
-    .pipe(minifyJS())
-    .pipe(gulp.dest(pathExports.js));
+
+// Export Styles
+gulp.task('exportStyles', function() {
+	return gulp.src(paths + '/scss/**/*.scss')
+	.pipe(sass({ outputStyle: 'expanded' }).on("error", notify.onError()))
+	.pipe(rename({ suffix: '.min' }))
+	.pipe(autoprefixer(['last 15 versions']))
+	.pipe(cleancss( {level: { 1: { specialComments: 0 } } }))
+	.pipe(gulp.dest(pathExports.css))
 });
 
+// Export JS
+gulp.task('exportScripts', function() {
+	return gulp.src(paths + '/js/common.js')
+	.pipe(concat('scripts.min.js'))
+	.pipe(gulp.dest(pathExports.js))
+});
 
 // Export
-gulp.task('export', 
-  gulp.parallel('cleanExport', 'concatVendorsStyles', 'concatVendorScripts', 'minifyJS', 'styles', 'scripts'), 
+gulp.task('export', gulp.series(
+  
+  gulp.parallel('cleanExport', 'exportStyles', 'exportScripts', 'concatVendorScripts'), 
   function() {
-    gulp.src(paths + '/*.php').pipe(gulp.dest(pathExport))
-    gulp.src(paths + '/img/_src/**/*.*').pipe(gulp.dest(pathExport + '/img/'))
-    .on('end', function () { done(); });
-  });
+    return gulp.src([paths + '/*.php', paths + '/**/*.php']).pipe(gulp.dest(pathExport)),
+    gulp.src(paths + '/img/_src/**/*.*').pipe(gulp.dest(pathExports.img)),
+    gulp.src(paths + '/fonts/**/*.*').pipe(gulp.dest(pathExports.fonts));
+  }
+)
+);
 
 
 // Watch
 gulp.task('watch', function() {
-  gulp.watch(paths + '/scss/**/*.scss', gulp.parallel('styles'));
-  gulp.watch(['libs/**/*.js', paths + '/js/common.js'], gulp.parallel('scripts'));
+  gulp.watch(paths + '/scss/**/*.scss', gulp.parallel('concatVendorStyles', 'styles'));
+  gulp.watch(paths + '/js/common.js', gulp.parallel('concatVendorScripts', 'scripts'));
   gulp.watch(paths + '/*.php', gulp.parallel('code'));
   gmWatch && gulp.watch(paths + '/img/_src/**/*', gulp.parallel('img')); // GraphicsMagick watching image sources if allowed.
 });
-gmWatch ? gulp.task('default', gulp.parallel('img', 'styles', 'scripts', 'browser-sync', 'watch')) 
-        : gulp.task('default', gulp.parallel('styles', 'scripts', 'browser-sync', 'watch'));
+gmWatch ? gulp.task('default', gulp.parallel('img', 'styles', 'scripts', 'concatVendorScripts', 'browser-sync', 'watch')) 
+        : gulp.task('default', gulp.parallel('styles', 'scripts', 'concatVendorScripts', 'browser-sync', 'watch'));
 
 
 // Deploy
