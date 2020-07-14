@@ -18,7 +18,6 @@ const { file }    = require('babel-types');
     del           = require('del');
 
 var paths = 'app';
-var pathLocalhost = 'http://localhost/gulp4test';
 var pathExport = 'export';
 
 var pathExports = {
@@ -31,10 +30,10 @@ var pathExports = {
 // Local Server
 gulp.task('browser-sync', function() {
 	browserSync({
-		server: {
-      baseDir: 'app',
-      // proxy: pathLocalhost
-		},
+    proxy: 'http://localhost/gulp4test/app/',
+		// server: {
+    //   baseDir: 'app',
+		// },
 		notify: false,
 		// open: false,
 		// online: false, // Work Offline Without Internet Connection
@@ -61,7 +60,8 @@ gulp.task('scripts', function() {
 	.pipe(browserSync.reload({ stream: true }))
 });
 
-// Images @x1 & @x2 + Compression | Required graphicsmagick (sudo apt update; sudo apt install graphicsmagick)
+// Images @x1 & @x2 + Compression
+// Required graphicsmagick (For Mac : brew install graphicsmagick )(sudo apt update; sudo apt install graphicsmagick)
 gulp.task('img1x', function() {
 	return gulp.src(paths + '/img/_src/**/*.*')
 	.pipe(imageResize({ width: '50%' }))
@@ -86,8 +86,6 @@ gulp.task('code', function() {
 	.pipe(browserSync.reload({ stream: true }))
 });
 
-gulp.task('img', gulp.parallel('img1x', 'img2x'));
-
 //Concatenates JS files
 gulp.task('concatVendorScripts', function() {
   return gulp.src([
@@ -99,6 +97,8 @@ gulp.task('concatVendorScripts', function() {
   .pipe(gulp.dest(pathExports.js));
 });
 
+// Resize Image
+gulp.task('img', gulp.parallel('img1x', 'img2x'));
 
 //======================================================================
 
@@ -140,7 +140,7 @@ gulp.task('export', gulp.series(
 
 // Watch
 gulp.task('watch', function() {
-  gulp.watch(paths + '/scss/**/*.scss', gulp.parallel('concatVendorStyles', 'styles'));
+  gulp.watch(paths + '/scss/**/*.scss', gulp.parallel('styles'));
   gulp.watch(paths + '/js/common.js', gulp.parallel('concatVendorScripts', 'scripts'));
   gulp.watch(paths + '/*.php', gulp.parallel('code'));
   gmWatch && gulp.watch(paths + '/img/_src/**/*', gulp.parallel('img')); // GraphicsMagick watching image sources if allowed.

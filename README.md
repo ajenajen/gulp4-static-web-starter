@@ -27,3 +27,4 @@ $ gulp export
 * gulp: run default gulp task (sass, js, watch, browserSync) for web development;
 * gulp export: run gulp export for file transfer to another development;
 * rsync: project deployment on the server from dist folder via RSYNC;
+* (run rsync change current .htaccess name and switch ht.access to .htaccess )
